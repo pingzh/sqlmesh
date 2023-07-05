@@ -1,3 +1,4 @@
+import duckdb
 import pytest
 from sqlglot import exp, parse, parse_one
 
@@ -13,6 +14,21 @@ def model() -> Model:
         parse_one("SELECT a, b, ds"),
         kind=IncrementalByTimeRangeKind(time_column="ds"),
     )
+
+
+@pytest.fixture
+def make_duckdb_db(request) -> duckdb.DuckDBPyConnection:
+    schema_name = request.param[0]
+    tbl_name = request.param[1]
+    tbl_schema = request.param[2]
+    tbl_values = request.param[3]
+
+    con = duckdb.connect()
+    con.sql(f"CREATE SCHEMA {schema_name}")
+    con.sql(f"CREATE TABLE {schema_name}.{tbl_name} {tbl_schema}")
+    con.sql(f"INSERT INTO {schema_name}.{tbl_name} VALUES {tbl_values}")
+
+    return con
 
 
 def test_load(assert_exp_eq):
@@ -196,7 +212,12 @@ def test_load_with_defaults(model, assert_exp_eq):
     )
 
 
-def test_not_null_audit(model: Model):
+@pytest.mark.parametrize(
+    "make_duckdb_db",
+    [("db", "test_model", "(a INT, b INT, ds VARCHAR)", "(NULL, 1, '1970-01-01')")],
+    indirect=True,
+)
+def test_not_null_audit(model: Model, make_duckdb_db: duckdb.DuckDBPyConnection):
     rendered_query_a = builtin.not_null_audit.render_query(
         model,
         columns=[exp.to_column("a")],
@@ -206,6 +227,8 @@ def test_not_null_audit(model: Model):
         == """SELECT * FROM (SELECT * FROM "db"."test_model" AS "test_model" WHERE "ds" BETWEEN '1970-01-01' AND '1970-01-01') AS "_q_0" WHERE "a" IS NULL"""
     )
 
+    assert len(make_duckdb_db.sql(rendered_query_a.sql()).fetchall()) == 1
+
     rendered_query_a_and_b = builtin.not_null_audit.render_query(
         model,
         columns=[exp.to_column("a"), exp.to_column("b")],
@@ -214,6 +237,8 @@ def test_not_null_audit(model: Model):
         rendered_query_a_and_b.sql()
         == """SELECT * FROM (SELECT * FROM "db"."test_model" AS "test_model" WHERE "ds" BETWEEN '1970-01-01' AND '1970-01-01') AS "_q_0" WHERE "a" IS NULL OR "b" IS NULL"""
     )
+
+    assert len(make_duckdb_db.sql(rendered_query_a_and_b.sql()).fetchall()) == 1
 
 
 def test_unique_values_audit(model: Model):
