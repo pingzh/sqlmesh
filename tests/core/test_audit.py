@@ -214,7 +214,14 @@ def test_load_with_defaults(model, assert_exp_eq):
 
 @pytest.mark.parametrize(
     "make_duckdb_db",
-    [("db", "test_model", "(a INT, b INT, ds VARCHAR)", "(NULL, 1, '1970-01-01')")],
+    [
+        (
+            "db",
+            "test_model",
+            "(a INT, b INT, ds VARCHAR)",
+            "(1, 1, '1970-01-01'), (NULL, 1, '1970-01-01')",
+        )
+    ],
     indirect=True,
 )
 def test_not_null_audit(model: Model, make_duckdb_db: duckdb.DuckDBPyConnection):
