@@ -16,17 +16,22 @@ def model() -> Model:
     )
 
 
-@pytest.fixture
-def make_duckdb_db(request) -> duckdb.DuckDBPyConnection:
-    schema_name = request.param[0]
-    tbl_name = request.param[1]
-    tbl_schema = request.param[2]
-    tbl_values = request.param[3]
-
+def create_and_populate_table(
+    tbl_values: str,
+    fq_tbl_name: str = "db.test_model",
+    tbl_schema: str = "(a INT, b INT, ds VARCHAR)",
+) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
-    con.sql(f"CREATE SCHEMA {schema_name}")
-    con.sql(f"CREATE TABLE {schema_name}.{tbl_name} {tbl_schema}")
-    con.sql(f"INSERT INTO {schema_name}.{tbl_name} VALUES {tbl_values}")
+
+    try:
+        schema_name, table_name = fq_tbl_name.split(".", 1)
+    except:
+        schema_name = None
+    if schema_name:
+        con.sql(f"CREATE SCHEMA {schema_name}")
+
+    con.sql(f"CREATE TABLE {fq_tbl_name} {tbl_schema}")
+    con.sql(f"INSERT INTO {fq_tbl_name} VALUES {tbl_values}")
 
     return con
 
@@ -212,19 +217,10 @@ def test_load_with_defaults(model, assert_exp_eq):
     )
 
 
-@pytest.mark.parametrize(
-    "make_duckdb_db",
-    [
-        (
-            "db",
-            "test_model",
-            "(a INT, b INT, ds VARCHAR)",
-            "(1, 1, '1970-01-01'), (NULL, 1, '1970-01-01')",
-        )
-    ],
-    indirect=True,
-)
-def test_not_null_audit(model: Model, make_duckdb_db: duckdb.DuckDBPyConnection):
+def test_not_null_audit(model: Model):
+    test_table_pass = create_and_populate_table("(1, 1, '1970-01-01')")
+    test_table_fail = create_and_populate_table("(1, 1, '1970-01-01'), (NULL, 1, '1970-01-01')")
+
     rendered_query_a = builtin.not_null_audit.render_query(
         model,
         columns=[exp.to_column("a")],
@@ -233,8 +229,8 @@ def test_not_null_audit(model: Model, make_duckdb_db: duckdb.DuckDBPyConnection)
         rendered_query_a.sql()
         == """SELECT * FROM (SELECT * FROM "db"."test_model" AS "test_model" WHERE "ds" BETWEEN '1970-01-01' AND '1970-01-01') AS "_q_0" WHERE "a" IS NULL"""
     )
-
-    assert len(make_duckdb_db.sql(rendered_query_a.sql()).fetchall()) == 1
+    assert len(test_table_pass.sql(rendered_query_a.sql()).fetchall()) == 0
+    assert len(test_table_fail.sql(rendered_query_a.sql()).fetchall()) == 1
 
     rendered_query_a_and_b = builtin.not_null_audit.render_query(
         model,
@@ -244,8 +240,8 @@ def test_not_null_audit(model: Model, make_duckdb_db: duckdb.DuckDBPyConnection)
         rendered_query_a_and_b.sql()
         == """SELECT * FROM (SELECT * FROM "db"."test_model" AS "test_model" WHERE "ds" BETWEEN '1970-01-01' AND '1970-01-01') AS "_q_0" WHERE "a" IS NULL OR "b" IS NULL"""
     )
-
-    assert len(make_duckdb_db.sql(rendered_query_a_and_b.sql()).fetchall()) == 1
+    assert len(test_table_pass.sql(rendered_query_a.sql()).fetchall()) == 0
+    assert len(test_table_fail.sql(rendered_query_a.sql()).fetchall()) == 1
 
 
 def test_unique_values_audit(model: Model):
