@@ -219,7 +219,9 @@ def test_load_with_defaults(model, assert_exp_eq):
 
 def test_not_null_audit(model: Model):
     test_table_pass = create_and_populate_table("(1, 1, '1970-01-01')")
-    test_table_fail = create_and_populate_table("(1, 1, '1970-01-01'), (NULL, 1, '1970-01-01')")
+    test_table_fail = create_and_populate_table(
+        "(1, 1, '1970-01-01'), (NULL, 1, '1970-01-01'), (1, NULL, '1970-01-01')"
+    )
 
     rendered_query_a = builtin.not_null_audit.render_query(
         model,
@@ -240,8 +242,8 @@ def test_not_null_audit(model: Model):
         rendered_query_a_and_b.sql()
         == """SELECT * FROM (SELECT * FROM "db"."test_model" AS "test_model" WHERE "ds" BETWEEN '1970-01-01' AND '1970-01-01') AS "_q_0" WHERE "a" IS NULL OR "b" IS NULL"""
     )
-    assert len(test_table_pass.sql(rendered_query_a.sql()).fetchall()) == 0
-    assert len(test_table_fail.sql(rendered_query_a.sql()).fetchall()) == 1
+    assert len(test_table_pass.sql(rendered_query_a_and_b.sql()).fetchall()) == 0
+    assert len(test_table_fail.sql(rendered_query_a_and_b.sql()).fetchall()) == 2
 
 
 def test_unique_values_audit(model: Model):
