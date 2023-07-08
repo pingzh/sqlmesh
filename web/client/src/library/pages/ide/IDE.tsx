@@ -8,7 +8,6 @@ import {
   useApiEnvironments,
   useApiPlanRun,
   apiCancelGetEnvironments,
-  apiCancelPlanRun,
 } from '../../../api'
 import {
   EnumPlanState,
@@ -88,7 +87,7 @@ export default function PageIDE(): JSX.Element {
   const createTab = useStoreEditor(s => s.createTab)
   const addTabs = useStoreEditor(s => s.addTabs)
 
-  const subscribe = useChannelEvents()
+  const channel = useChannelEvents()
 
   // We need to fetch from IDE level to make sure
   // all pages have access to models and files
@@ -121,13 +120,10 @@ export default function PageIDE(): JSX.Element {
   ])
 
   useEffect(() => {
-    const unsubscribeTasks = subscribe<PlanProgress>('tasks', updateTasks)
-    const unsubscribeModels = subscribe<Model[]>('models', updateModels)
-    const unsubscribeErrors = subscribe<ErrorIDE>('errors', displayErrors)
-    const unsubscribePromote = subscribe<any>(
-      'promote-environment',
-      handlePromote,
-    )
+    const channelTasks = channel<PlanProgress>('tasks', updateTasks)
+    const channelModels = channel<Model[]>('models', updateModels)
+    const channelErrors = channel<ErrorIDE>('errors', displayErrors)
+    const channelPromote = channel<any>('promote-environment', handlePromote)
 
     void debouncedGetModels().then(({ data }) => {
       updateModels(data)
@@ -144,6 +140,11 @@ export default function PageIDE(): JSX.Element {
       setProject(project)
     })
 
+    channelTasks?.subscribe()
+    channelModels?.subscribe()
+    channelErrors?.subscribe()
+    channelPromote?.subscribe()
+
     return () => {
       debouncedGetEnvironemnts.cancel()
       debouncedGetModels.cancel()
@@ -153,12 +154,11 @@ export default function PageIDE(): JSX.Element {
       apiCancelFiles(client)
       apiCancelModels(client)
       apiCancelGetEnvironments(client)
-      apiCancelPlanRun(client)
 
-      unsubscribeTasks?.()
-      unsubscribeModels?.()
-      unsubscribePromote?.()
-      unsubscribeErrors?.()
+      channelTasks?.unsubscribe()
+      channelModels?.unsubscribe()
+      channelErrors?.unsubscribe()
+      channelPromote?.unsubscribe()
     }
   }, [])
 
