@@ -250,6 +250,7 @@ function Plan({
     removeError(EnumErrorKey.General)
     removeError(EnumErrorKey.RunPlan)
     removeError(EnumErrorKey.ApplyPlan)
+    cleanUp()
     onClose()
   }
 
