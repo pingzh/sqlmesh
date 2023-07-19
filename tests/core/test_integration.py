@@ -380,7 +380,6 @@ def test_no_override(sushi_context: Context) -> None:
         DataType.Type.BIGINT,
     )
     plan = sushi_context.plan("prod")
-    plan.set_start(start(sushi_context))
 
     items = plan.context_diff.snapshots["sushi.items"]
     order_items = plan.context_diff.snapshots["sushi.order_items"]
@@ -450,7 +449,6 @@ def setup_rebase(
         DataType.Type.FLOAT,
     )
     plan = context.plan("prod")
-    plan.set_start(start(context))
 
     plan_choice(plan, remote_choice)
     remote_versions = {snapshot.name: snapshot.version for snapshot in plan.snapshots}
@@ -737,7 +735,8 @@ def apply_to_environment(
         no_prompts=True,
         include_unmodified=True,
     )
-    plan.set_start(start(context))
+    if environment != c.PROD:
+        plan.set_start(start(context))
 
     if choice:
         plan_choice(plan, choice)
