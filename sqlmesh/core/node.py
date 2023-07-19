@@ -1,37 +1,17 @@
 from __future__ import annotations
 
 import typing as t
-from enum import Enum
 
 from pydantic import validator
 from sqlglot import exp
 
 from sqlmesh.utils.cron import CroniterCache
-from sqlmesh.utils.date import TimeLike, to_datetime
+from sqlmesh.utils.date import IntervalUnit, TimeLike, to_datetime
 from sqlmesh.utils.errors import ConfigError
 from sqlmesh.utils.pydantic import PydanticModel
 
 if t.TYPE_CHECKING:
     from sqlmesh.core.audit import Audit
-
-
-class IntervalUnit(str, Enum):
-    """IntervalUnit is the inferred granularity of an incremental model.
-
-    IntervalUnit can be one of 5 types, YEAR, MONTH, DAY, HOUR, MINUTE. The unit is inferred
-    based on the cron schedule of a model. The minimum time delta between a sample set of dates
-    is used to determine which unit a model's schedule is.
-    """
-
-    YEAR = "year"
-    MONTH = "month"
-    DAY = "day"
-    HOUR = "hour"
-    MINUTE = "minute"
-
-    @property
-    def is_date_granularity(self) -> bool:
-        return self in (IntervalUnit.YEAR, IntervalUnit.MONTH, IntervalUnit.DAY)
 
 
 class Node(PydanticModel):
