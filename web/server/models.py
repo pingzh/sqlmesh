@@ -8,9 +8,8 @@ from pydantic import BaseModel, validator
 from sqlglot import exp
 
 from sqlmesh.core.context_diff import ContextDiff
-from sqlmesh.core.node import IntervalUnit
 from sqlmesh.core.snapshot.definition import SnapshotChangeCategory
-from sqlmesh.utils.date import TimeLike
+from sqlmesh.utils.date import IntervalUnit, TimeLike
 
 SUPPORTED_EXTENSIONS = {".py", ".sql", ".yaml", ".yml", ".csv"}
 

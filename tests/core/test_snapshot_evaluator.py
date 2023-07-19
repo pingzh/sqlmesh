@@ -20,7 +20,6 @@ from sqlmesh.core.model import (
     ViewKind,
     load_model,
 )
-from sqlmesh.core.node import IntervalUnit
 from sqlmesh.core.snapshot import (
     Snapshot,
     SnapshotChangeCategory,
@@ -28,6 +27,7 @@ from sqlmesh.core.snapshot import (
     SnapshotFingerprint,
     SnapshotTableInfo,
 )
+from sqlmesh.utils.date import IntervalUnit
 from sqlmesh.utils.errors import ConfigError, SQLMeshError
 from sqlmesh.utils.metaprogramming import Executable
 
