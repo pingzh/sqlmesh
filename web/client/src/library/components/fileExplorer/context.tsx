@@ -133,6 +133,8 @@ export default function FileExplorerProvider({
   }
 
   function renameArtifact(artifact: ModelArtifact, newName?: string): void {
+    newName = newName?.trim()
+
     if (isLoading || isStringEmptyOrNil(newName)) return
 
     removeError(EnumErrorKey.FileExplorer)
@@ -141,7 +143,7 @@ export default function FileExplorerProvider({
     const currentName = artifact.name
     const currentPath = artifact.path
 
-    artifact.rename(newName!.trim())
+    artifact.rename(newName)
 
     if (artifact instanceof ModelDirectory) {
       writeDirectoryApiDirectoriesPathPost(currentPath, {
