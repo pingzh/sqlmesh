@@ -1003,7 +1003,7 @@
               { "type": "integer" },
               { "type": "number" }
             ],
-            "title": "ExecutionTime"
+            "title": "Execution Time"
           },
           "limit": { "type": "integer", "title": "Limit", "default": 1000 }
         },
@@ -1081,9 +1081,12 @@
         "title": "LineageColumn"
       },
       "Meta": {
-        "properties": { "version": { "type": "string", "title": "Version" } },
+        "properties": {
+          "version": { "type": "string", "title": "Version" },
+          "has_running_task": { "type": "boolean", "title": "Has Running Task" }
+        },
         "type": "object",
-        "required": ["version"],
+        "required": ["version", "has_running_task"],
         "title": "Meta"
       },
       "Model": {
@@ -1306,7 +1309,7 @@
               { "type": "integer" },
               { "type": "number" }
             ],
-            "title": "ExecutionTime"
+            "title": "Execution Time"
           },
           "expand": {
             "anyOf": [
