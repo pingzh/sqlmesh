@@ -6,11 +6,15 @@ import Footer from './library/pages/root/Footer'
 import { router } from './routes'
 import Loading from '@components/loading/Loading'
 import Spinner from '@components/logo/Spinner'
-import { debounceAsync } from './utils'
+import { debounceAsync, isFalse, isNil } from './utils'
 import { useApiMeta } from './api'
 import { useStoreContext } from '@context/context'
+import { EnumAction, useStoreActionManager } from '@context/manager'
 
 export default function App(): JSX.Element {
+  const resetCurrentAction = useStoreActionManager(s => s.resetCurrentAction)
+  const isActiveAction = useStoreActionManager(s => s.isActiveAction)
+
   const setVersion = useStoreContext(s => s.setVersion)
 
   const { refetch: getMeta } = useApiMeta()
@@ -21,7 +25,16 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     void debouncedGetMeta().then(({ data }) => {
-      setVersion(data?.version)
+      if (isNil(data)) return
+
+      setVersion(data.version)
+
+      if (
+        (isFalse(data.has_running_task) && isActiveAction(EnumAction.Plan)) ||
+        isActiveAction(EnumAction.PlanApply)
+      ) {
+        resetCurrentAction()
+      }
     })
 
     return () => {

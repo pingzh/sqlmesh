@@ -42,6 +42,7 @@ import ModalConfirmation, {
   type Confirmation,
 } from '@components/modal/ModalConfirmation'
 import { ModelDirectory } from '@models/directory'
+import { EnumAction, useStoreActionManager } from '@context/manager'
 
 const ReportErrors = lazy(
   async () => await import('../../components/report/ReportErrors'),
@@ -72,7 +73,6 @@ export default function PageIDE(): JSX.Element {
     s => s.hasSynchronizedEnvironments,
   )
 
-  const planState = useStorePlan(s => s.state)
   const activePlan = useStorePlan(s => s.activePlan)
   const setState = useStorePlan(s => s.setState)
   const setActivePlan = useStorePlan(s => s.setActivePlan)
@@ -88,6 +88,9 @@ export default function PageIDE(): JSX.Element {
   const addTabs = useStoreEditor(s => s.addTabs)
 
   const subscribe = useChannelEvents()
+
+  const enqueueAction = useStoreActionManager(s => s.enqueueAction)
+  const resetCurrentAction = useStoreActionManager(s => s.resetCurrentAction)
 
   // We need to fetch from IDE level to make sure
   // all pages have access to models and files
@@ -105,16 +108,13 @@ export default function PageIDE(): JSX.Element {
   const debouncedGetModels = useCallback(debounceAsync(getModels, 1000, true), [
     getModels,
   ])
-
   const debouncedGetFiles = useCallback(debounceAsync(getFiles, 1000, true), [
     getFiles,
   ])
-
   const debouncedGetEnvironemnts = useCallback(
     debounceAsync(getEnvironments, 1000, true),
     [getEnvironments],
   )
-
   const debouncedRunPlan = useCallback(debounceAsync(planRun, 1000, true), [
     planRun,
   ])
@@ -173,9 +173,7 @@ export default function PageIDE(): JSX.Element {
 
     // This use case is happening when user refreshes the page
     // while plan is still applying
-    if (planState !== EnumPlanState.Applying) {
-      void debouncedRunPlan()
-    }
+    enqueueAction(EnumAction.Plan, debouncedRunPlan)
   }, [dataEnvironments])
 
   useEffect(() => {
@@ -184,7 +182,7 @@ export default function PageIDE(): JSX.Element {
     }
 
     if (hasSynchronizedEnvironments()) {
-      void debouncedRunPlan()
+      enqueueAction(EnumAction.Plan, debouncedRunPlan)
     }
   }, [models])
 
@@ -203,6 +201,7 @@ export default function PageIDE(): JSX.Element {
 
     if (isFalse(isObject(data.tasks))) {
       setState(EnumPlanState.Init)
+      resetCurrentAction()
 
       return
     }
@@ -217,10 +216,13 @@ export default function PageIDE(): JSX.Element {
 
     if (isFalse(data.ok)) {
       setState(EnumPlanState.Failed)
+      resetCurrentAction()
     } else if (isAllTasksCompleted(data.tasks)) {
       setState(EnumPlanState.Finished)
+      resetCurrentAction()
     } else {
       setState(EnumPlanState.Applying)
+      enqueueAction(EnumAction.PlanApply)
     }
   }
 

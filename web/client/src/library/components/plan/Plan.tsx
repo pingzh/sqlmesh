@@ -35,6 +35,7 @@ import { useApplyPayload, usePlanPayload } from './hooks'
 import { useChannelEvents } from '@api/channels'
 import SplitPane from '../splitPane/SplitPane'
 import { EnumErrorKey, useIDE } from '~/library/pages/ide/context'
+import { EnumAction, useStoreActionManager } from '@context/manager'
 
 function Plan({
   environment,
@@ -54,7 +55,7 @@ function Plan({
   const client = useQueryClient()
 
   const dispatch = usePlanDispatch()
-  const { errors, removeError, addError } = useIDE()
+  const { errors, removeError } = useIDE()
 
   const {
     auto_apply,
@@ -63,6 +64,9 @@ function Plan({
     hasVirtualUpdate,
     testsReportErrors,
   } = usePlan()
+
+  const enqueueAction = useStoreActionManager(s => s.enqueueAction)
+  const resetCurrentAction = useStoreActionManager(s => s.resetCurrentAction)
 
   const planState = useStorePlan(s => s.state)
   const planAction = useStorePlan(s => s.action)
@@ -87,6 +91,10 @@ function Plan({
     planRun,
   ])
 
+  const debouncedPlanApply = useCallback(debounceAsync(planApply, 1000, true), [
+    planApply,
+  ])
+
   useEffect(() => {
     const unsubscribeTests = subscribe('tests', testsReport)
 
@@ -103,8 +111,6 @@ function Plan({
     ])
 
     return () => {
-      debouncedPlanRun.cancel()
-
       unsubscribeTests?.()
     }
   }, [])
@@ -254,6 +260,9 @@ function Plan({
           reset()
         }
       })
+      .finally(() => {
+        resetCurrentAction()
+      })
   }
 
   function apply(): void {
@@ -266,19 +275,13 @@ function Plan({
       },
     ])
 
-    planApply({
-      throwOnError: true,
-    })
+    enqueueAction(EnumAction.PlanApply)
+
+    debouncedPlanApply()
       .then(({ data }) => {
         if (data?.type === EnumPlanApplyType.Virtual) {
           setPlanState(EnumPlanState.Finished)
-        }
-      })
-      .catch(error => {
-        if (isCancelledError(error)) {
-          console.log('planApply', 'Request aborted by React Query')
-        } else {
-          addError(EnumErrorKey.ApplyPlan, error)
+          resetCurrentAction()
         }
       })
       .finally(() => {
@@ -298,42 +301,34 @@ function Plan({
     setPlanAction(EnumPlanAction.Running)
     setPlanState(EnumPlanState.Running)
 
-    debouncedPlanRun({
-      throwOnError: true,
+    enqueueAction(EnumAction.Plan, async () => {
+      const { data } = await debouncedPlanRun()
+
+      dispatch([
+        {
+          type: EnumPlanActions.Backfills,
+          backfills: data?.backfills,
+        },
+        {
+          type: EnumPlanActions.Changes,
+          ...data?.changes,
+        },
+        {
+          type: EnumPlanActions.Dates,
+          start: data?.start,
+          end: data?.end,
+        },
+      ])
+
+      seIsPlanRan(true)
+      setPlanState(EnumPlanState.Init)
+
+      if (auto_apply) {
+        apply()
+      } else {
+        setPlanAction(EnumPlanAction.Run)
+      }
     })
-      .then(({ data }) => {
-        dispatch([
-          {
-            type: EnumPlanActions.Backfills,
-            backfills: data?.backfills,
-          },
-          {
-            type: EnumPlanActions.Changes,
-            ...data?.changes,
-          },
-          {
-            type: EnumPlanActions.Dates,
-            start: data?.start,
-            end: data?.end,
-          },
-        ])
-
-        seIsPlanRan(true)
-        setPlanState(EnumPlanState.Init)
-
-        if (auto_apply) {
-          apply()
-        } else {
-          setPlanAction(EnumPlanAction.Run)
-        }
-      })
-      .catch(error => {
-        if (isCancelledError(error)) {
-          console.log('planRun', 'Request aborted by React Query')
-        } else {
-          addError(EnumErrorKey.RunPlan, error)
-        }
-      })
   }
 
   const shouldSplitPane = isObjectNotEmpty(testsReportErrors)

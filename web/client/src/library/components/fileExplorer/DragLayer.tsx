@@ -6,6 +6,8 @@ import { ModelDirectory } from '@models/directory'
 import { useFileExplorer } from './context'
 import FileExplorer from './FileExplorer'
 import { ModelFile } from '@models/file'
+import { ModelArtifact } from '@models/artifact'
+import { isNil } from '@utils/index'
 
 const layerStyles: CSSProperties = {
   position: 'fixed',
@@ -20,11 +22,21 @@ const layerStyles: CSSProperties = {
 export default function DragLayer(): JSX.Element {
   const { activeRange } = useFileExplorer()
 
-  const { isDragging, currentOffset, artifact } = useDragLayer(monitor => ({
-    artifact: monitor.getItem(),
-    isDragging: monitor.isDragging(),
-    currentOffset: monitor.getSourceClientOffset(),
-  }))
+  const { isDragging, currentOffset, artifact } = useDragLayer(monitor => {
+    const artifact = monitor.getItem()
+
+    return artifact instanceof ModelArtifact
+      ? {
+          artifact: monitor.getItem(),
+          isDragging: monitor.isDragging(),
+          currentOffset: monitor.getSourceClientOffset(),
+        }
+      : {
+          artifact: undefined,
+          currentOffset: undefined,
+          isDragging: false,
+        }
+  })
   const artifacts = useMemo(
     () =>
       Array.from(
@@ -75,8 +87,8 @@ export default function DragLayer(): JSX.Element {
   )
 }
 
-function getItemStyles(currentOffset: XYCoord | null): React.CSSProperties {
-  if (currentOffset == null) {
+function getItemStyles(currentOffset?: XYCoord | null): React.CSSProperties {
+  if (isNil(currentOffset)) {
     return {
       display: 'none',
     }

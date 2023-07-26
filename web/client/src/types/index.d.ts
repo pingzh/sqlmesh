@@ -6,3 +6,5 @@ type ID = string | number
 type KeyOf<T> = T[keyof T]
 type Optional<T> = T | undefined
 type Callback = () => void
+type Cancelable<T> = T & { cancel?: Callback }
+type AsyncCallback = () => Promise<void>
